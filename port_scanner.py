@@ -1,82 +1,70 @@
-# Syntecxhub Port Scanner
+import socket
+import threading
+from datetime import datetime
 
-## Project Overview
+print("=" * 50)
+print("      SYNTECXHUB TCP PORT SCANNER")
+print("=" * 50)
 
-This project is a multithreaded TCP Port Scanner developed in Python as part of the Syntecxhub Cybersecurity Internship Program.
+target = input("Enter target IP or hostname: ")
 
-The scanner checks whether TCP ports on a target host are open or closed and saves the results to a log file.
+try:
+    target_ip = socket.gethostbyname(target)
+except socket.gaierror:
+    print("Error: Invalid hostname or IP address.")
+    exit()
 
-## Features
+start_port = int(input("Enter start port: "))
+end_port = int(input("Enter end port: "))
 
-* Scan a target host using TCP sockets
-* Scan a custom range of ports
-* Multithreaded scanning for improved performance
-* Detect open and closed ports
-* Log scan results to a file
-* Handle exceptions and connection errors
+print(f"\nScanning {target_ip} from port {start_port} to {end_port}")
+print(f"Started at: {datetime.now()}\n")
 
-## Technologies Used
+log_file = open("scan_results.txt", "w")
 
-* Python 3
-* Socket Programming
-* Threading
+lock = threading.Lock()
 
-## How to Run
+def scan_port(port):
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
 
-1. Open a terminal.
-2. Navigate to the project directory.
+        result = sock.connect_ex((target_ip, port))
 
-```bash
-cd Syntecxhub_Port_Scanner
-```
+        with lock:
+            if result == 0:
+                message = f"[OPEN] Port {port}"
+            else:
+                message = f"[CLOSED] Port {port}"
 
-3. Run the scanner.
+            print(message)
+            log_file.write(message + "\n")
 
-```bash
-python3 port_scanner.py
-```
+        sock.close()
 
-4. Enter:
+    except socket.timeout:
+        with lock:
+            message = f"[TIMEOUT] Port {port}"
+            print(message)
+            log_file.write(message + "\n")
 
-   * Target IP address or hostname
-   * Start port
-   * End port
+    except Exception as e:
+        with lock:
+            message = f"[ERROR] Port {port}: {e}"
+            print(message)
+            log_file.write(message + "\n")
 
-## Example
+threads = []
 
-Target Host:
+for port in range(start_port, end_port + 1):
+    thread = threading.Thread(target=scan_port, args=(port,))
+    threads.append(thread)
+    thread.start()
 
-```text
-localhost
-```
+for thread in threads:
+    thread.join()
 
-Port Range:
+log_file.close()
 
-```text
-20 - 100
-```
-
-## Output
-
-The program displays the scan results on the screen and saves them in:
-
-```text
-scan_results.txt
-```
-
-## Learning Outcomes
-
-Through this project, I learned:
-
-* TCP networking fundamentals
-* Socket programming in Python
-* Multithreading using Python threads
-* Exception handling
-* Logging and file operations
-* Basic cybersecurity reconnaissance concepts
-
-## Author
-
-PeterTheSalem
-
-Cybersecurity Student | SOC Analyst Aspirant
+print("\nScan Complete!")
+print("Results saved to scan_results.txt") 
